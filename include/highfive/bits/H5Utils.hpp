@@ -37,10 +37,15 @@ template <std::size_t N>
 class FixedLenStringArray;
 
 
+template <typename T>
+using unqualified_t = typename std::remove_const<typename std::remove_reference<T>::type
+        >::type;
+
 namespace details {
 template <typename T>
 struct manipulator {
     using type = T;
+    using hdf5_type = unqualified_t<T>;
 
     static const size_t n_dims = 0;
     static const size_t r_n_dims = n_dims;
@@ -49,6 +54,7 @@ struct manipulator {
 template <size_t N>
 struct manipulator<FixedLenStringArray<N>> {
     using type = FixedLenStringArray<N>;
+    using hdf5_type = FixedLenStringArray<N>;
 
     static const size_t n_dims = 1;
     static const size_t r_n_dims = n_dims;
@@ -58,6 +64,7 @@ template <typename T>
 struct manipulator<std::vector<T>> {
     using type = std::vector<T>;
     using value_type = T;
+    using hdf5_type = typename manipulator<value_type>::hdf5_type;
 
     static const size_t n_dims = 1;
     static const size_t r_n_dims = n_dims + manipulator<value_type>::r_n_dims;
@@ -67,6 +74,7 @@ template <typename T>
 struct manipulator<T*> {
     using type = T*;
     using value_type = T;
+    using hdf5_type = typename manipulator<value_type>::hdf5_type;
 
     static const size_t n_dims = 1;
     static const size_t r_n_dims = n_dims + manipulator<value_type>::r_n_dims;
@@ -76,6 +84,7 @@ template <typename T, size_t N>
 struct manipulator<T[N]> {
     using type = T[N];
     using value_type = T;
+    using hdf5_type = typename manipulator<value_type>::hdf5_type;
 
     static const size_t n_dims = 1;
     static const size_t r_n_dims = n_dims + manipulator<value_type>::r_n_dims;
@@ -85,6 +94,7 @@ template <typename T, size_t N>
 struct manipulator<std::array<T, N>> {
     using type = std::array<T, N>;
     using value_type = T;
+    using hdf5_type = typename manipulator<value_type>::hdf5_type;
 
     static const size_t n_dims = 1;
     static const size_t r_n_dims = n_dims + manipulator<value_type>::r_n_dims;
@@ -95,6 +105,7 @@ template <typename T, int M, int N>
 struct manipulator<Eigen::Matrix<T, M, N>> {
     using type = Eigen::Matrix<T, M, N>;
     using value_type = T;
+    using hdf5_type = typename manipulator<value_type>::hdf5_type;
 
     static const size_t n_dims = 2;
     static const size_t r_n_dims = n_dims + manipulator<value_type>::r_n_dims;
@@ -106,6 +117,7 @@ template <typename T, size_t Dims>
 struct manipulator<boost::multi_array<T, Dims>> {
     using type = boost::multi_array<T, Dims>;
     using value_type = T;
+    using hdf5_type = typename manipulator<value_type>::hdf5_type;
 
     static const size_t n_dims = Dims;
     static const size_t r_n_dims = n_dims + manipulator<value_type>::r_n_dims;
@@ -115,6 +127,7 @@ template <typename T>
 struct manipulator<boost::numeric::ublas::matrix<T>> {
     using type = boost::numeric::ublas::matrix<T>;
     using value_type = T;
+    using hdf5_type = typename manipulator<value_type>::hdf5_type;
 
     static const size_t n_dims = 2;
     static const size_t r_n_dims = n_dims + manipulator<value_type>::r_n_dims;
@@ -153,55 +166,6 @@ inline std::vector<size_t> get_dim_vector(const T(&vec)[N]) {
     return dims;
 }
 
-
-template <typename T>
-using unqualified_t = typename std::remove_const<typename std::remove_reference<T>::type
-        >::type;
-
-// determine at compile time recursively the basic type of the data
-template <typename T>
-struct type_of_array {
-    typedef unqualified_t<T> type;
-};
-
-template <typename T>
-struct type_of_array<std::vector<T>> {
-    typedef typename type_of_array<T>::type type;
-};
-
-template <typename T, std::size_t N>
-struct type_of_array<std::array<T, N>> {
-    typedef typename type_of_array<T>::type type;
-};
-
-#ifdef H5_USE_BOOST
-template <typename T, std::size_t Dims>
-struct type_of_array<boost::multi_array<T, Dims>> {
-    typedef typename type_of_array<T>::type type;
-};
-
-template <typename T>
-struct type_of_array<boost::numeric::ublas::matrix<T>> {
-    typedef typename type_of_array<T>::type type;
-};
-#endif
-
-#ifdef H5_USE_EIGEN
-template<typename T, int M, int N>
-struct type_of_array<Eigen::Matrix<T, M, N>> {
-    typedef T type;
-};
-#endif
-
-template <typename T>
-struct type_of_array<T*> {
-    typedef typename type_of_array<T>::type type;
-};
-
-template <typename T, std::size_t N>
-struct type_of_array<T[N]> {
-    typedef typename type_of_array<T>::type type;
-};
 
 
 // Find the type of an eventual char array, otherwise void
